@@ -1,0 +1,85 @@
+options(scipen = 999)
+#Extract key variables; ex stands for extract
+df_ex <- data.frame(df$B1PAGE_M2, df$B1PRSEX,
+            df$B1PA63, df$B1PA64, df$B1PA65,
+            df$B1PA66, df$B1PA67, df$B1PA68,
+            df$B1PA69, df$B1SA28A, df$B1SA28B,
+            df$B1SA28C, df$B1SA28D, df$B1SA28E,
+            df$B1SA28F, df$B1SA28G, df$B1SA28H)
+
+#Remove NAs and MVs; c stands for clean
+df_c <- subset(df_ex, df$B1PAGE_M2 < 98 & df$B1PRSEX < 7 &
+                 df$B1PA63 < 7 & df$B1PA64 < 7 & df$B1PA65 < 7 &
+                 df$B1PA66 < 7 & df$B1PA67 < 7 & df$B1PA68 < 7 &
+                 df$B1PA69 < 7 & df$B1SA28A < 7 & df$B1SA28B < 7 &
+                 df$B1SA28C < 7 & df$B1SA28D < 7 & df$B1SA28E < 7 &
+                 df$B1SA28F < 7 & df$B1SA28G < 7 & df$B1SA28H < 7)
+
+#Move age to the end
+df_c$Age <- df_c$df.B1PAGE_M2
+
+#Dummy code sex and move to the end; females = 1, male = 0
+df_c$Sex <- ifelse(df_c$df.B1PRSEX == "2", 1, 0)
+
+#Dummy_code depression items and move to the end; yes = 1, no = 0
+df_c$dm1 <- ifelse(df_c$df.B1PA63 == "1", 1, 0)
+df_c$dm2 <- ifelse(df_c$df.B1PA64 == "1", 1, 0)
+df_c$dm3 <- ifelse(df_c$df.B1PA65 == "1", 1, 0)
+df_c$dm4 <- ifelse(df_c$df.B1PA66 == "1", 1, 0)
+df_c$dm5 <- ifelse(df_c$df.B1PA67 == "1", 1, 0)
+df_c$dm6 <- ifelse(df_c$df.B1PA68 == "1", 1, 0)
+df_c$dm7 <- ifelse(df_c$df.B1PA69 == "1", 1, 0)
+
+#Reverse code health
+install.packages("car")
+library(car)
+df_c$health1 <- recode(df_c$df.B1SA28A, '1=4; 2=3; 3=2; 4=1')
+df_c$health2 <- recode(df_c$df.B1SA28B, '1=4; 2=3; 3=2; 4=1')
+df_c$health3 <- recode(df_c$df.B1SA28C, '1=4; 2=3; 3=2; 4=1')
+df_c$health4 <- recode(df_c$df.B1SA28D, '1=4; 2=3; 3=2; 4=1')
+df_c$health5 <- recode(df_c$df.B1SA28E, '1=4; 2=3; 3=2; 4=1')
+df_c$health6 <- recode(df_c$df.B1SA28F, '1=4; 2=3; 3=2; 4=1')
+df_c$health7 <- recode(df_c$df.B1SA28G, '1=4; 2=3; 3=2; 4=1')
+df_c$health8 <- recode(df_c$df.B1SA28H, '1=4; 2=3; 3=2; 4=1')
+
+
+#Composite score for health, add to end
+df_c$health <- rowMeans(df_c[, c("health1", "health2", "health3",
+                                 "health4", "health5", "health6",
+                                 "health7", "health8")])
+
+#Composite score for depression, add to end 
+df_c$depression <- rowMeans(df_c[, c("df.B1PA63", "df.B1PA64", "df.B1PA65",
+                                     "df.B1PA66", "df.B1PA67", "df.B1PA68",
+                                     "df.B1PA69")])
+
+#Create final data frame with our cleaned variables of interest
+df_f <- data.frame(df_c$Age, df_c$Sex, df_c$depression,
+                   df_c$health)
+
+#Rename your variables for easier interpretation; f stands for final
+df_f$Age <- df_f$df_c.Age
+df_f$Sex <- df_f$df_c.Sex
+df_f$Depression <- df_f$df_c.depression
+df_f$Health <- df_f$df_c.health
+
+#Drop old variable names for EVEN easier interpretation; a stands for analysis 
+df_an <- df_f[-c(1:4)]
+
+#We need to run a multiple regression analysis 
+#We want to control for age and sex
+#Model 1 (alternative model) will regress age, sex, and health onto depression
+#Standard regression coefficient for sex is expressed in comparison to males 
+Model1 <- lm(scale(Depression) ~ scale(Age) + 
+              Sex + scale(Health), data = df_an)
+
+#Model 2 (control model) will only regress age and sex onto depression
+#Standard regression coefficient for sex is expressed in comparison to males
+Model2 <- lm(scale(Depression) ~ scale(Age) +
+            Sex, data = df_an)
+
+#Compare models
+#F-test
+anova(Model1, Model2, test = "F")
+#X2-test 
+anova(Model1, Model2, test = "Chisq")
